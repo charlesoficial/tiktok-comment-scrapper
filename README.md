@@ -7,10 +7,12 @@ Ferramenta de linha de comando para exportar comentarios publicos de videos do T
 - Codigo refeito em uma estrutura limpa e modular.
 - Aceita ID, URL normal e URL curta do TikTok.
 - Exporta comentarios com metadados uteis: usuario, nickname, texto, data, avatar, likes e replies.
-- Permite limitar a quantidade de comentarios com `--limit`.
+- Coleta todos os comentarios por padrao; use `--limit` para limitar.
 - Permite acelerar a coleta ignorando replies com `--no-replies`.
 - Salva JSON bonito por padrao ou compacto com `--compact`.
-- Exporta CSV para abrir em Excel, Google Sheets ou BI.
+- Exporta CSV, TXT e XLSX (Excel) alem do JSON.
+- Mostra progresso da coleta no terminal (silenciavel com `--quiet`).
+- Pega a legenda do video na propria coleta, sem requisicao extra.
 - Usa mensagens de erro amigaveis no terminal.
 
 ## Requisitos
@@ -18,6 +20,7 @@ Ferramenta de linha de comando para exportar comentarios publicos de videos do T
 - Python 3.11 ou superior
 - requests
 - click
+- openpyxl (para exportar XLSX)
 
 ## Instalacao
 
@@ -42,7 +45,7 @@ source venv/bin/activate
 Com ID do video:
 
 ```sh
-python main.py --video 7418294751977327878 --limit 10 --output data
+python main.py --video 7418294751977327878 --output data
 ```
 
 Com URL:
@@ -51,10 +54,16 @@ Com URL:
 python main.py --video "https://www.tiktok.com/@usuario/video/7418294751977327878"
 ```
 
+Limitando a quantidade de comentarios:
+
+```sh
+python main.py --video 7418294751977327878 --limit 100
+```
+
 Sem coletar replies:
 
 ```sh
-python main.py --video 7418294751977327878 --limit 100 --no-replies
+python main.py --video 7418294751977327878 --no-replies
 ```
 
 JSON compacto:
@@ -69,10 +78,28 @@ CSV:
 python main.py --video 7418294751977327878 --format csv
 ```
 
+TXT (legivel):
+
+```sh
+python main.py --video 7418294751977327878 --format txt
+```
+
+XLSX (Excel):
+
+```sh
+python main.py --video 7418294751977327878 --format xlsx
+```
+
 JSON e CSV ao mesmo tempo:
 
 ```sh
 python main.py --video 7418294751977327878 --format both
+```
+
+Todos os formatos de uma vez:
+
+```sh
+python main.py --video 7418294751977327878 --format all
 ```
 
 ## Opcoes
@@ -80,11 +107,12 @@ python main.py --video 7418294751977327878 --format both
 | Opcao | Descricao | Padrao |
 | --- | --- | --- |
 | `--video`, `--aweme-id` | ID ou URL do video do TikTok | obrigatorio |
-| `--limit`, `--size`, `-s` | Quantidade maxima de comentarios | `50` |
+| `--limit`, `--size`, `-s` | Limita a quantidade de comentarios | coleta todos |
 | `--output`, `-o` | Pasta onde o JSON sera salvo | `data` |
 | `--replies / --no-replies` | Inclui ou ignora replies | `--replies` |
 | `--pretty / --compact` | JSON formatado ou compacto | `--pretty` |
-| `--format` | Formato de saida: `json`, `csv` ou `both` | `json` |
+| `--format` | Saida: `json`, `csv`, `txt`, `xlsx`, `both` (json+csv) ou `all` | `json` |
+| `--quiet / --verbose` | Silencia ou mostra o progresso da coleta | `--verbose` |
 
 ## Formato da saida
 
@@ -93,6 +121,8 @@ O arquivo e salvo como:
 ```txt
 data/<video_id>.json
 data/<video_id>.csv
+data/<video_id>.txt
+data/<video_id>.xlsx
 ```
 
 Exemplo:

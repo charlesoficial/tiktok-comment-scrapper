@@ -7,7 +7,7 @@ from .exporter import export_comments
 from .utils import VideoIdError
 
 APP_NAME = "TikTok Comments Exporter"
-VERSION = "3.0.0"
+VERSION = "1.0.0"
 
 
 @click.command(help="Exporta comentarios publicos de videos do TikTok para JSON.")
@@ -23,10 +23,9 @@ VERSION = "3.0.0"
     "--limit",
     "--size",
     "-s",
-    default=50,
-    show_default=True,
+    default=None,
     type=click.IntRange(min=1),
-    help="Quantidade maxima de comentarios.",
+    help="Limita a quantidade de comentarios. Sem isso, coleta todos.",
 )
 @click.option(
     "--output",
@@ -50,19 +49,30 @@ VERSION = "3.0.0"
 @click.option(
     "--format",
     "file_format",
-    type=click.Choice(["json", "csv", "both"]),
+    type=click.Choice(["json", "csv", "txt", "xlsx", "both", "all"]),
     default="json",
     show_default=True,
-    help="Formato de saida.",
+    help="Formato de saida (both = json+csv, all = json+csv+txt+xlsx).",
+)
+@click.option(
+    "--quiet/--verbose",
+    default=False,
+    show_default=True,
+    help="Silencia as mensagens de progresso.",
 )
 def main(
     video: str,
-    limit: int,
+    limit: int | None,
     output: str,
     replies: bool,
     pretty: bool,
     file_format: str,
+    quiet: bool,
 ) -> None:
+    def progress(message: str) -> None:
+        if not quiet:
+            click.echo(message, err=True)
+
     try:
         file_paths = export_comments(
             video,
@@ -71,6 +81,7 @@ def main(
             include_replies=replies,
             pretty=pretty,
             file_format=file_format,
+            progress=progress,
         )
     except (TikTokClientError, VideoIdError) as exc:
         raise click.ClickException(str(exc)) from exc

@@ -21,6 +21,7 @@ class TikTokClient:
         self.timeout = timeout
         self.retries = retries
         self.delay = delay
+        self._meta_cache: dict[str, tuple[str, str]] = {}
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -39,14 +40,17 @@ class TikTokClient:
         self,
         video_id: str,
         *,
-        limit: int,
+        limit: int | None,
         include_replies: bool,
     ) -> Iterable[Comment]:
         cursor = 0
         yielded = 0
 
-        while yielded < limit:
-            page_size = min(self.max_page_size, limit - yielded)
+        while limit is None or yielded < limit:
+            if limit is None:
+                page_size = self.max_page_size
+            else:
+                page_size = min(self.max_page_size, limit - yielded)
             payload = self._get(
                 "comment/list",
                 {
@@ -61,13 +65,15 @@ class TikTokClient:
             if not raw_comments:
                 break
 
+            self._cache_meta(video_id, raw_comments[0])
+
             for raw_comment in raw_comments:
                 comment = Comment.from_api(raw_comment)
                 if include_replies and comment.reply_count:
                     comment.replies = list(self.iter_replies(video_id, comment.id))
                 yield comment
                 yielded += 1
-                if yielded >= limit:
+                if limit is not None and yielded >= limit:
                     break
 
             if not payload.get("has_more"):
@@ -103,6 +109,9 @@ class TikTokClient:
             cursor = int(payload.get("cursor") or cursor + self.max_page_size)
 
     def get_video_meta(self, video_id: str) -> tuple[str, str]:
+        if video_id in self._meta_cache:
+            return self._meta_cache[video_id]
+
         payload = self._get(
             "comment/list",
             {
@@ -116,8 +125,16 @@ class TikTokClient:
         if not raw_comments:
             return "", ""
 
-        share_info = raw_comments[0].get("share_info") or {}
-        return str(share_info.get("title") or ""), str(share_info.get("url") or "")
+        return self._cache_meta(video_id, raw_comments[0])
+
+    def _cache_meta(self, video_id: str, raw_comment: dict[str, Any]) -> tuple[str, str]:
+        if video_id not in self._meta_cache:
+            share_info = raw_comment.get("share_info") or {}
+            self._meta_cache[video_id] = (
+                str(share_info.get("title") or ""),
+                str(share_info.get("url") or ""),
+            )
+        return self._meta_cache[video_id]
 
     def _get(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         last_error: Exception | None = None
